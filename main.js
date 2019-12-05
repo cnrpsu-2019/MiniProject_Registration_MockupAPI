@@ -4,10 +4,10 @@ var port = 8080
 var faculty = require("./faculty")
 var bodyParser = require("body-parser")
 const EventEmitter = require("events")
+const pusherEventLoop = new EventEmitter()
 /**---------ZeroMQ Dependencies ---------------- */
 const zmq = require("zeromq")
 var zmqPushSock = new zmq.Push()
-var zeromqPushSocket = require("./pushEvent")
 /**---------Function------------------ */
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*")
@@ -56,7 +56,7 @@ app.post("/register/", (req, res) => {
   console.log("User Want to Enroll " + input.SubjectToEnroll.length)
   console.log(input.SubjectToEnroll)
   //Push to Message Queue
-  zmqPushSock.bind("tcp://127.0.0.1:3030").then(() => {
+  zmqPushSock.bind("tcp://127.0.0.1:8090").then(() => {
     pusherEventLoop.emit("push", input.StudentID, input.SubjectToEnroll)
   })
   res.end()
@@ -68,7 +68,8 @@ pusherEventLoop.on("push", (student, subject) => {
     StudentID: student,
     SubjectToEnroll: subject
   }
-
+  console.log("Push To Unprocessed Queue is ready")
+  console.log(dataObj)
   zmqPushSock.send(JSON.stringify(dataObj))
 })
 
