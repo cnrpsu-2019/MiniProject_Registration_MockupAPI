@@ -9,7 +9,7 @@ var zmqPushSock = new zmq.Push()
 //Mockup data the real data will provide by frost
 let mockdata = {
   StudentID: "5910110150",
-  SubjectSuccessEnroll: ["240-460", "240-000"]
+  SubjectSuccessEnroll: true
 }
 
 //Mockdata Show AS dataObj

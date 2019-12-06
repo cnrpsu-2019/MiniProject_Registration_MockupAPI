@@ -76,6 +76,9 @@ app.post("/register/", (req, res) => {
   io.on("connection", socket => {
     socket.emit("registerIO", { status: "Pending" })
     sessionIO[input.StudentID] = socket
+    socket.on("disconnect", () => {
+      console.log("Socket" + input.StudentID + " is close")
+    })
   })
   res.end()
 })
@@ -125,6 +128,7 @@ connectToSocketIO = result => {
   if (sessionIO[result.StudentID] != null) {
     sessionIO[result.StudentID].emit("RegisterIO", result)
     console.log("Success Sending")
+    // sessionIO[result.StudentID].disconnect()
     delete sessionIO[result.StudentID]
   }
 }
