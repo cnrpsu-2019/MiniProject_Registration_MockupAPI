@@ -6,22 +6,29 @@
  *  */
 
 /**-------Express Dependencies----------- */
+
 var app = require("express")()
 var port = 8080
 var faculty = require("./faculty")
 var bodyParser = require("body-parser")
 const EventEmitter = require("events")
 const pusherEventLoop = new EventEmitter()
+
 /**---------ZeroMQ Dependencies ---------------- */
+
 const zmq = require("zeromq")
 var zmqPushSock = new zmq.Push()
 var zmqPullSock = new zmq.Pull()
 zmqPushSock.bind("tcp://127.0.0.1:8090")
 pulling()
+
 /**-------Socket.io Dependencies-------------- */
+
 var io = require("socket.io")(3030)
-var sessionIO = []
+var sessionIO = { 0000000: "55555 " }
+
 /**---------Function------------------ */
+
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*")
   res.header(
@@ -54,6 +61,7 @@ app.get("/:faculty", (req, res) => {
   var thisFaculty = req.params.faculty
   res.json(faculty.findByFaculty(thisFaculty))
 })
+
 app.get("/:faculty/:subject", (req, res) => {
   var thisFaculty = req.params.faculty
   var subject = req.params.subject
@@ -62,7 +70,6 @@ app.get("/:faculty/:subject", (req, res) => {
 
 /**--------------Registration---------------- */
 app.post("/register/", (req, res) => {
-  //Input using type JSON
   let input = req.body
   console.log("post request has arrive at the server")
   res.send("Register " + input.StudentID + "is come to process")
@@ -70,21 +77,27 @@ app.post("/register/", (req, res) => {
   console.log(input.SubjectToEnroll)
 
   //Push to Message Queue
-
   pusherEventLoop.emit("push", input.StudentID, input.SubjectToEnroll)
 
   io.on("connection", socket => {
-    socket.emit("registerIO", { status: "Pending" })
+    console.log("-----------------------------")
+    console.log("Socket IO Server Start Create Session")
+    console.log("From Process " + input.StudentID)
+    console.log("process ID " + socket.id)
+
     sessionIO[input.StudentID] = socket
+
+    console.log("Create in Array" + sessionIO[input.StudentID])
+    console.log("-------------------------------------")
     socket.on("disconnect", () => {
       console.log("Socket" + input.StudentID + " is close")
     })
   })
+
   res.end()
 })
 
 /**----------Unprocessed Queue Manaing----------*/
-/**-----ZeroMQ Request handle let data to push--------------- */
 pusherEventLoop.on("push", (student, subject) => {
   let dataObj = {
     StudentID: student,
@@ -103,7 +116,6 @@ pusherEventLoop.on("push", (student, subject) => {
 })
 
 /**-------Processed Queue Managing--------------*/
-/**-----ZeroMQ Responce handle --------------- */
 async function pulling() {
   zmqPullSock.connect("tcp://127.0.0.1:3090")
   console.log("Worker is ready")
@@ -114,6 +126,7 @@ async function pulling() {
       console.log(mgsInString)
       let mgsInObject = JSON.parse(mgsInString)
       console.log(mgsInObject)
+
       //Handling Out To Socket.io
       if (mgsInObject != null) {
         connectToSocketIO(mgsInObject)
@@ -125,17 +138,17 @@ async function pulling() {
 }
 
 /**--------Socket IO ----------*/
-//Socket.io After Push has arrive
-connectToSocketIO = result => {
-  console.log("Attempt in Socket IO Connection ")
+function connectToSocketIO(result) {
   if (sessionIO[result.StudentID] != null) {
-    console.log(sessionIO)
-    console.log(sessionIO[result.StudentID])
-
+    console.log("----------------------------------------------------")
+    console.log("Attempt in Socket IO Connection ")
+    console.log("SocketIO 1")
+    console.log("Student ID" + result.StudentID)
+    console.log("Session ID" + sessionIO[result.StudentID].id)
     sessionIO[result.StudentID].emit("RegisterIO", result)
     console.log("Success Sending")
-    sessionIO[result.StudentID].disconnect()
-    delete sessionIO[result.StudentID]
+    // sessionIO[result.StudentID].disconnect()
+    // delete sessionIO[result.StudentID]
   }
 }
 
