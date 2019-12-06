@@ -16,10 +16,11 @@ const pusherEventLoop = new EventEmitter()
 const zmq = require("zeromq")
 var zmqPushSock = new zmq.Push()
 var zmqPullSock = new zmq.Pull()
+zmqPushSock.bind("tcp://127.0.0.1:8090")
+pulling()
 /**-------Socket.io Dependencies-------------- */
 var io = require("socket.io")(3030)
 var sessionIO = []
-
 /**---------Function------------------ */
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*")
@@ -69,9 +70,8 @@ app.post("/register/", (req, res) => {
   console.log(input.SubjectToEnroll)
 
   //Push to Message Queue
-  zmqPushSock.bind("tcp://127.0.0.1:8090").then(() => {
-    pusherEventLoop.emit("push", input.StudentID, input.SubjectToEnroll)
-  })
+
+  pusherEventLoop.emit("push", input.StudentID, input.SubjectToEnroll)
 
   io.on("connection", socket => {
     socket.emit("registerIO", { status: "Pending" })
@@ -90,12 +90,16 @@ pusherEventLoop.on("push", (student, subject) => {
     StudentID: student,
     SubjectToEnroll: subject
   }
+  zmqPushSock
+    .send(JSON.stringify(dataObj))
+    .catch(err => {
+      console.error(err)
+    })
+    .then(() => {
+      console.log("send to zmq complete")
+    })
   console.log("Push To Unprocessed Queue is ready")
   console.log(dataObj)
-  zmqPushSock.send(JSON.stringify(dataObj))
-  /**  After Pushing to Queue call Pulling to open 
-  pull system wait for this object callback*/
-  pulling()
 })
 
 /**-------Processed Queue Managing--------------*/
@@ -103,7 +107,6 @@ pusherEventLoop.on("push", (student, subject) => {
 async function pulling() {
   zmqPullSock.connect("tcp://127.0.0.1:3090")
   console.log("Worker is ready")
-
   while (true) {
     try {
       const [mgs] = await zmqPullSock.receive()
@@ -126,9 +129,12 @@ async function pulling() {
 connectToSocketIO = result => {
   console.log("Attempt in Socket IO Connection ")
   if (sessionIO[result.StudentID] != null) {
+    console.log(sessionIO)
+    console.log(sessionIO[result.StudentID])
+
     sessionIO[result.StudentID].emit("RegisterIO", result)
     console.log("Success Sending")
-    // sessionIO[result.StudentID].disconnect()
+    sessionIO[result.StudentID].disconnect()
     delete sessionIO[result.StudentID]
   }
 }
