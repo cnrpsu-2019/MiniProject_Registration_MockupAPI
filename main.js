@@ -20,9 +20,6 @@ var zmqPullSock = new zmq.Pull()
 var io = require("socket.io")(3030)
 var sessionIO = []
 
-/**------------Variable----------- */
-// let socketIOSesstion = []
-
 /**---------Function------------------ */
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*")
@@ -78,7 +75,7 @@ app.post("/register/", (req, res) => {
 
   io.on("connection", socket => {
     socket.emit("registerIO", { status: "Pending" })
-    sessionIO.push({ socket: socket, id: input.StudentID })
+    sessionIO[input.StudentID] = socket
   })
   res.end()
 })
@@ -125,18 +122,10 @@ async function pulling() {
 //Socket.io After Push has arrive
 connectToSocketIO = result => {
   console.log("Attempt in Socket IO Connection ")
-  for (let i = 0; i < sessionIO.length; i++) {
-    console.log("SocketIO In Loop Ready : Loop " + i)
-    console.log("Session User ID" + sessionIO[i].id)
-    console.log("Result" + result.StudentID)
-    if (sessionIO[i].id == result.StudentID) {
-      sessionIO[i].socket.emit("RegisterIO", result)
-      console.log("Success Finding")
-      console.log(result)
-      console.log("Success Sending")
-    } else {
-      console.log("No!!! in loop" + i)
-    }
+  if (sessionIO[result.StudentID] != null) {
+    sessionIO[result.StudentID].emit("RegisterIO", result)
+    console.log("Success Sending")
+    delete sessionIO[result.StudentID]
   }
 }
 
